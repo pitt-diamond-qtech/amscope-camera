@@ -20,8 +20,8 @@ def runRegistration(currImgArray, prevImgArray):
     num_pixels_x = dx * width
     num_pixels_y = dy * height
 
-    print("Number of pixels mapped in X direction:", num_pixels_x)
-    print("Number of pixels mapped in Y direction:", num_pixels_y)
+    #print("Number of pixels mapped in X direction:", num_pixels_x)
+    #print("Number of pixels mapped in Y direction:", num_pixels_y)
     # save this frame's array data for the next frame of registration
     return num_pixels_x, num_pixels_y
 
@@ -34,7 +34,7 @@ class App:
 # the vast majority of callbacks come from amcam.dll/so/dylib internal threads
     @staticmethod
     def cameraCallback(nEvent, ctx):
-        if nEvent == amcam.AMCAM_EVENT_IMAGE:
+        if nEvent == amcam.AMCAM_EVENT_IMAGE or nEvent == amcam.AMCAM_EVENT_STILLIMAGE:
             ctx.CameraCallback(nEvent)
 
     def CameraCallback(self, nEvent):
@@ -42,19 +42,35 @@ class App:
             try:
                 self.hcam.PullImageV2(self.buf, 24, None)
                 self.total += 1
-                print('pull image ok, total = {}'.format(self.total))
+                # print('pull image ok, total = {}'.format(self.total))
                 img = np.frombuffer(self.buf, dtype=np.uint8).reshape(self.height, self.width, 3)
-                cropwidth = 1000
-                img = img[self.height//2-cropwidth:self.height//2+cropwidth, self.width//2-cropwidth:self.width//2+cropwidth,]
+                cropwidth = self.width//2
+                cropheight = self.height//2
+                img = img[self.height//2-cropheight:self.height//2+cropheight,self.width//2-cropwidth:self.width//2+cropwidth,]
                 cv2.imshow('image', img)
                 cv2.waitKey(1)
                 px,py = runRegistration(img, self.prevImg)
                 self.prevImg = img
             except amcam.HRESULTException as ex:
                 print('pull image failed, hr=0x{:x}'.format(ex.hr))
+        elif nEvent == amcam.AMCAM_EVENT_STILLIMAGE:
+            # print("still image detected")
+            try:
+                self.hcam.PullStillImageV2(self.buf, 24, None)
+                # self.total += 1
+                # print('pull still image ok')
+                img = np.frombuffer(self.buf, dtype=np.uint8).reshape(self.height, self.width, 3)
+                cropwidth = self.width//2
+                cropheight = self.height//2
+                img = img[self.height//2-cropheight:self.height//2+cropheight,self.width//2-cropwidth:self.width//2+cropwidth,]
+                cv2.imshow('snap', img)
+                cv2.waitKey(1)
+                # px,py = runRegistration(img, self.prevImg)
+                # self.prevImg = img
+            except amcam.HRESULTException as ex:
+                print('pull image failed, hr=0x{:x}'.format(ex.hr))
         else:
             print('event callback: {}'.format(nEvent))
-        
 
     def run(self):
 
@@ -71,29 +87,49 @@ class App:
                     #integrationTime = float(input())
                     self.hcam.put_AutoExpoEnable(False)
 
-                    integrationTime = 0
-                    while integrationTime < 0.05 or integrationTime > 2000:
-                        integrationTime = float(input("Enter the integration time (0.05-2000ms): "))
-                    integrationTime *= 1000 #put in units of microseconds
-                    self.hcam.put_ExpoTime(int(integrationTime))
+                    # self.input_gain(100, 300)
+                    # self.input_integration_time(0.05, 2000)
+                    # self.input_resolution()
 
-                    gain = 0
-                    while gain < 100 or gain > 300:
-                        gain = int(input("Enter the electronic gain (100-300%): "))
-                    self.hcam.put_ExpoAGain(gain)
+                    # defaults for testing
+                    self.hcam.put_ExpoAGain(100)
+                    self.hcam.put_ExpoTime(10 * 1000)
+                    self.hcam.put_eSize(0)
 
                     width, height = self.hcam.get_Size()
                     self.width = width
                     self.height = height
+                    print(self.height)
                     bufsize = ((width * 24 + 31) // 32 * 4) * height
                     print('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
                     self.buf = bytes(bufsize)
                     if self.buf:
+                        isLive = True
+                        #while(True):
+                        #    mode = input("Choose mode - (l)ive or (s)nap: ")
+                        #    if mode == "s":
+                        #        isLive = False
+                        #        break
+                        #    elif not(mode == "l"):
+                        #        print("Invalid mode.")
+                        #    else:
+                        #        break
                         try:
                             self.hcam.StartPullModeWithCallback(self.cameraCallback, self)
                         except amcam.HRESULTException as ex:
                             print('failed to start camera, hr=0x{:x}'.format(ex.hr))
-                    input('press ENTER to exit')
+                        
+                        # self.hcam.Snap(0)
+                        # self.hcam.Snap(0)
+                        # input("Press ENTER to exit")
+                    while(True):
+                        command = input('Press q to quit, s to snap: ')
+                        if command == "q":
+                            break
+                        elif command == "s":
+                            self.hcam.Snap(0)
+                        else:
+                            print("Invalid command")
                 finally:
                     self.hcam.Close()
                     self.hcam = None
