@@ -57,8 +57,10 @@ class App:
         
 
     def run(self):
+
         self.prevImg = None
         a = amcam.Amcam.EnumV2()
+
         if len(a) > 0:
             print('{}: flag = {:#x}, preview = {}, still = {}'.format(a[0].displayname, a[0].model.flag, a[0].model.preview, a[0].model.still))
             for r in a[0].model.res:
@@ -66,6 +68,20 @@ class App:
             self.hcam = amcam.Amcam.Open(a[0].id)
             if self.hcam:
                 try:
+                    #integrationTime = float(input())
+                    self.hcam.put_AutoExpoEnable(False)
+
+                    integrationTime = 0
+                    while integrationTime < 0.05 or integrationTime > 2000:
+                        integrationTime = float(input("Enter the integration time (0.05-2000ms): "))
+                    integrationTime *= 1000 #put in units of microseconds
+                    self.hcam.put_ExpoTime(int(integrationTime))
+
+                    gain = 0
+                    while gain < 100 or gain > 300:
+                        gain = int(input("Enter the electronic gain (100-300%): "))
+                    self.hcam.put_ExpoAGain(gain)
+
                     width, height = self.hcam.get_Size()
                     self.width = width
                     self.height = height
