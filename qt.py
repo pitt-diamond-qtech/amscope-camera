@@ -26,7 +26,7 @@ class SnapWin(QWidget):
 class MainWin(QWidget):
     eventImage = pyqtSignal(int)
 
-    def __init__(self, gain=100, integration_time=10.0, res="low"):
+    def __init__(self, gain=100, integration_time=10):
         super().__init__()
         self.hcam = None
         self.buf = None      # video buffer
@@ -36,7 +36,6 @@ class MainWin(QWidget):
         self.snap_total = 0
         self.gain = gain
         self.integration_time = integration_time
-        self.res = res
         self.setFixedSize(800, 600)
         qtRectangle = self.frameGeometry()
         centerPoint = QDesktopWidget().availableGeometry().center()
@@ -104,13 +103,7 @@ class MainWin(QWidget):
             else:
                 self.hcam.put_ExpoAGain(self.gain)
                 self.hcam.put_ExpoTime(self.integration_time) 
-                match self.res:
-                    case "high":
-                        self.hcam.put_eSize(0) # 2560x1922
-                    case "mid":
-                        self.hcam.put_eSize(1) # 1280x960
-                    case _:
-                         self.hcam.put_eSize(2) # 640x480
+                self.hcam.put_eSize(0) # 2560x1922
 
                 self.w, self.h = self.hcam.get_Size()
                 bufsize = ((self.w * 24 + 31) // 32 * 4) * self.h
@@ -134,4 +127,4 @@ class MainWin(QWidget):
         if self.hcam is not None:
             self.hcam.Close()
             self.hcam = None
-
+            # print("Closing")

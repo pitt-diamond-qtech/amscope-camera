@@ -24,11 +24,12 @@ def input_resolution():
 if __name__ == '__main__':
     gain = input_gain(100, 300) # MU503B default range
     integration_time = input_integration_time(0.05, 2000) # MU503B default range
-    res = input_resolution()
+    # res = input_resolution()
 
     app = QApplication(sys.argv)
-    win = qt.MainWin(gain, integration_time, res)
+    win = qt.MainWin(gain, integration_time)
     win.show()
+    
     while(True):
         command = input('Press q to quit, s to snap: ')
         if command == "q":
